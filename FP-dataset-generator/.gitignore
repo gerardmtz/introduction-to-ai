@@ -1,2 +1,5 @@
 # image format
 *.jpg
+
+# ignores test prompt files
+prompting/
