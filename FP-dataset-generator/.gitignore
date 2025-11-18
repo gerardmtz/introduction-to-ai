@@ -3,3 +3,8 @@
 
 # ignores test prompt files
 prompting/
+
+# ignores metadata generated files
+*.md
+*dataset_info.json
+
