@@ -834,6 +834,8 @@ def run_ai_assistant():
         elif tool == "dataset_generator":
             console.print("[green]🤖 Creating dataset configuration from your request...[/green]")
             
+            time.sleep(2)
+            
             # Convert dict to Namespace object to simulate argparse args
             args_mock = SimpleNamespace(
                 query=result.get('query'),

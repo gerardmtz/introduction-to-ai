@@ -11,8 +11,6 @@ class AIAgent:
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.client = None
-        # Nota: Usamos gpt-4o-mini como placeholder funcional para "gpt-5-nano" 
-        # hasta que el modelo exacto esté disponible públicamente.
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano") 
         
         if self.api_key:
