@@ -5,6 +5,8 @@
 prompting/
 
 # ignores metadata generated files
-*.md
+*README.md
 *dataset_info.json
 
+# ignores .evn variables
+*.env

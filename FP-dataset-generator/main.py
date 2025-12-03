@@ -2,6 +2,7 @@ import argparse
 import sys
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt, Confirm
@@ -26,6 +27,8 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).parent))
 from src.pipeline import DatasetPipeline
+# Importamos el nuevo agente
+from src.ai_agent import AIAgent
 
 console = Console()
 
@@ -84,7 +87,12 @@ def show_application_menu():
         "[dim]Launch web crawler with custom search[/dim]"
     )
     menu_table.add_row(
-        "[bold red]3[/bold red]",
+        "[bold yellow]3[/bold yellow]",
+        "🤖 [magenta]AI Assistant[/magenta]",
+        "[dim]Chat with the tools (Requires OpenAI Key)[/dim]"
+    )
+    menu_table.add_row(
+        "[bold red]4[/bold red]",
         "❌ [red]Exit[/red]",
         "[dim]Close the application[/dim]"
     )
@@ -95,7 +103,7 @@ def show_application_menu():
     # Get user choice
     choice_panel = Panel(
         "[yellow]Enter the number of your choice[/yellow]\n"
-        "[dim]Press 1, 2, or 3[/dim]",
+        "[dim]Press 1, 2, 3, or 4[/dim]",
         title="[bold cyan]⌨️  Your Selection[/bold cyan]",
         border_style="cyan",
         box=box.ROUNDED
@@ -105,46 +113,59 @@ def show_application_menu():
     
     choice = Prompt.ask(
         "[bold cyan]Select application[/bold cyan]",
-        choices=["1", "2", "3"],
+        choices=["1", "2", "3", "4"],
         default="1"
     )
     
     return choice
 
 
-def launch_web_crawler():
+def launch_web_crawler(auto_config=None):
     """Launch web crawler with parameters"""
     console.print()
     console.rule("[bold blue]🕷️  Web Crawler AI Launcher[/bold blue]", style="blue")
     console.print()
     
-        # Default path
-    default_exe_path = ""
+    exe_file = None
     
-    # Ask for executable path
-    exe_panel = Panel(
-        "[yellow]Enter the path to webcrawler.exe[/yellow]\n\n"
-        "[dim]Tip: You can drag and drop the .exe file here[/dim]",
-        title="[blue]📂 Executable Path[/blue]",
-        border_style="blue",
-        box=box.ROUNDED
-    )
-    console.print(exe_panel)
-    console.print()
-    
-    exe_path = Prompt.ask(
-        "[bold blue]Executable path[/bold blue]"
-    )
-    
-    # Clean up the path
-    exe_path = exe_path.strip().strip('"').strip("'")
-    exe_file = Path(exe_path)
+    # 1. Determinar ejecutable (Automático si viene de IA, Manual si no)
+    if auto_config:
+        # Intenta encontrar el exe automáticamente en el directorio actual
+        possible_names = ["webcrawler-ai.exe", "webcrawler-ai", "main.exe", "main"]
+        for name in possible_names:
+            if Path(name).exists():
+                exe_file = Path(name).absolute()
+                break
+        
+        if not exe_file:
+            console.print("[red]❌ Could not find web crawler executable automatically.[/red]")
+            # Si falla, cae al prompt manual de abajo
+            
+    if not exe_file:
+        # Ask for executable path
+        exe_panel = Panel(
+            "[yellow]Enter the path to webcrawler.exe[/yellow]\n\n"
+            "[dim]Tip: You can drag and drop the .exe file here[/dim]",
+            title="[blue]📂 Executable Path[/blue]",
+            border_style="blue",
+            box=box.ROUNDED
+        )
+        console.print(exe_panel)
+        console.print()
+        
+        exe_path = Prompt.ask(
+            "[bold blue]Executable path[/bold blue]"
+        )
+        
+        # Clean up the path
+        exe_path = exe_path.strip().strip('"').strip("'")
+        exe_file = Path(exe_path)
     
     # Validate file exists
     if not exe_file.exists():
         error_panel = Panel(
             f"[bold red]File not found:[/bold red]\n\n"
-            f"[yellow]Path:[/yellow] {exe_path}\n\n"
+            f"[yellow]Path:[/yellow] {exe_file}\n\n"
             f"[yellow]💡 Suggestions:[/yellow]\n"
             f"  • Check if the path is correct\n"
             f"  • Copy the full path from File Explorer\n"
@@ -157,47 +178,53 @@ def launch_web_crawler():
         console.print(error_panel)
         console.print()
         
-        if Confirm.ask("\n[yellow]Try again?[/yellow]", default=True):
+        if not auto_config and Confirm.ask("\n[yellow]Try again?[/yellow]", default=True):
             return launch_web_crawler()
         else:
             return False
     
-    # Get search parameters
-    console.print()
-    console.rule("[bold cyan]🔧 Configuration[/bold cyan]", style="cyan")
-    console.print()
-    
-    params_panel = Panel(
-        "[cyan]Configure the web crawler parameters[/cyan]\n\n"
-        "[dim]The crawler will search for your query and scrape pages[/dim]",
-        title="[cyan]⚙️  Parameters[/cyan]",
-        border_style="cyan",
-        box=box.ROUNDED
-    )
-    console.print(params_panel)
-    console.print()
-    
-    # Get search keyword
-    keyword = ""
-    while not keyword:
-        keyword = Prompt.ask(
-            "[bold cyan]🔍 Search keyword (-k)[/bold cyan]",
-            default="artificial intelligence"
-        ).strip()
-        if not keyword:
-            console.print("[red]❌ Keyword cannot be empty![/red]")
-    
-    # Get number of pages
-    num_pages = IntPrompt.ask(
-        "[bold cyan]📄 Number of pages to crawl (-p)[/bold cyan]",
-        default=5
-    )
-    
-    # Verbose mode
-    verbose = Confirm.ask(
-        "[bold cyan]📊 Enable verbose mode (-v)?[/bold cyan]",
-        default=True
-    )
+    # 2. Configurar parámetros
+    if auto_config:
+        keyword = auto_config.get('keyword')
+        num_pages = auto_config.get('num_pages', 5)
+        verbose = True
+        console.print(f"[cyan]🤖 Auto-configuring crawler for:[/cyan] [green]{keyword}[/green]")
+    else:
+        # Get search parameters interactively
+        console.print()
+        console.rule("[bold cyan]🔧 Configuration[/bold cyan]", style="cyan")
+        
+        params_panel = Panel(
+            "[cyan]Configure the web crawler parameters[/cyan]\n\n"
+            "[dim]The crawler will search for your query and scrape pages[/dim]",
+            title="[cyan]⚙️  Parameters[/cyan]",
+            border_style="cyan",
+            box=box.ROUNDED
+        )
+        console.print(params_panel)
+        console.print()
+        
+        # Get search keyword
+        keyword = ""
+        while not keyword:
+            keyword = Prompt.ask(
+                "[bold cyan]🔍 Search keyword (-k)[/bold cyan]",
+                default="artificial intelligence"
+            ).strip()
+            if not keyword:
+                console.print("[red]❌ Keyword cannot be empty![/red]")
+        
+        # Get number of pages
+        num_pages = IntPrompt.ask(
+            "[bold cyan]📄 Number of pages to crawl (-p)[/bold cyan]",
+            default=5
+        )
+        
+        # Verbose mode
+        verbose = Confirm.ask(
+            "[bold cyan]📊 Enable verbose mode (-v)?[/bold cyan]",
+            default=True
+        )
     
     # Build command
     command_parts = [f'"{exe_file.absolute()}"']
@@ -208,45 +235,48 @@ def launch_web_crawler():
     
     full_command = ' '.join(command_parts)
     
-    # Show configuration summary
-    console.print()
-    console.rule("[bold yellow]📋 Summary[/bold yellow]", style="yellow")
-    console.print()
-    
-    config_table = Table(
-        box=box.ROUNDED,
-        show_header=False,
-        border_style="cyan",
-        padding=(0, 2)
-    )
-    
-    config_table.add_column("Parameter", style="bold cyan", width=25)
-    config_table.add_column("Value", style="bold white", width=50)
-    
-    config_table.add_row("📂 Executable", exe_file.name)
-    config_table.add_row("📁 Location", str(exe_file.parent))
-    config_table.add_row("🔍 Search Keyword", f"[green]{keyword}[/green]")
-    config_table.add_row("📄 Pages to Crawl", f"[yellow]{num_pages}[/yellow]")
-    config_table.add_row("📊 Verbose Mode", "[green]✅ Enabled[/green]" if verbose else "[red]❌ Disabled[/red]")
-    config_table.add_row("⚙️  Full Command", f"[dim]{full_command}[/dim]")
-    
-    console.print(Align.center(config_table))
-    console.print()
-    
-    # Confirm launch
-    confirm_panel = Panel(
-        "[yellow]Review the configuration above[/yellow]\n"
-        "[dim]The crawler will start in a new window[/dim]",
-        title="[bold yellow]⚠️  Confirmation[/bold yellow]",
-        border_style="yellow",
-        box=box.ROUNDED
-    )
-    console.print(confirm_panel)
-    
-    if not Confirm.ask("\n[bold yellow]🚀 Launch web crawler?[/bold yellow]", default=True):
-        console.print("[yellow]⚠️  Launch cancelled[/yellow]\n")
-        return False
-    
+    # Show configuration summary only if manual
+    if not auto_config:
+        console.print()
+        console.rule("[bold yellow]📋 Summary[/bold yellow]", style="yellow")
+        console.print()
+        
+        config_table = Table(
+            box=box.ROUNDED,
+            show_header=False,
+            border_style="cyan",
+            padding=(0, 2)
+        )
+        
+        config_table.add_column("Parameter", style="bold cyan", width=25)
+        config_table.add_column("Value", style="bold white", width=50)
+        
+        config_table.add_row("📂 Executable", exe_file.name)
+        config_table.add_row("📁 Location", str(exe_file.parent))
+        config_table.add_row("🔍 Search Keyword", f"[green]{keyword}[/green]")
+        config_table.add_row("📄 Pages to Crawl", f"[yellow]{num_pages}[/yellow]")
+        config_table.add_row("📊 Verbose Mode", "[green]✅ Enabled[/green]" if verbose else "[red]❌ Disabled[/red]")
+        config_table.add_row("⚙️  Full Command", f"[dim]{full_command}[/dim]")
+        
+        console.print(Align.center(config_table))
+        console.print()
+        
+        # Confirm launch
+        confirm_panel = Panel(
+            "[yellow]Review the configuration above[/yellow]\n"
+            "[dim]The crawler will start in a new window[/dim]",
+            title="[bold yellow]⚠️  Confirmation[/bold yellow]",
+            border_style="yellow",
+            box=box.ROUNDED
+        )
+        console.print(confirm_panel)
+        
+        if not Confirm.ask("\n[bold yellow]🚀 Launch web crawler?[/bold yellow]", default=True):
+            console.print("[yellow]⚠️  Launch cancelled[/yellow]\n")
+            return False
+    else:
+        console.print(f"[dim]Command: {full_command}[/dim]")
+
     # Launch the crawler
     try:
         console.print()
@@ -258,7 +288,7 @@ def launch_web_crawler():
         # Working directory
         working_dir = exe_file.parent
         
-            # Launch process with parameters
+        # Launch process with parameters
         if sys.platform == "win32":
             # Windows: Nueva ventana de consola
             process = subprocess.Popen(
@@ -305,23 +335,28 @@ def launch_web_crawler():
             console.print()
             return False
         
-        success_panel = Panel(
-            "[bold green]✅ Web Crawler launched successfully![/bold green]\n\n"
-            f"[cyan]Process ID:[/cyan] {process.pid}\n"
-            f"[cyan]Working Directory:[/cyan] {working_dir}\n"
-            f"[cyan]Search Query:[/cyan] {keyword}\n"
-            f"[cyan]Pages to Crawl:[/cyan] {num_pages}\n\n"
-            "[dim]The crawler is running in a separate console window[/dim]\n"
-            "[dim]Check the new window for progress and results[/dim]",
-            title="[bold green]🎉 Success[/bold green]",
-            border_style="green",
-            box=box.DOUBLE
-        )
-        console.print(success_panel)
-        console.print()
+        if not auto_config:
+            success_panel = Panel(
+                "[bold green]✅ Web Crawler launched successfully![/bold green]\n\n"
+                f"[cyan]Process ID:[/cyan] {process.pid}\n"
+                f"[cyan]Working Directory:[/cyan] {working_dir}\n"
+                f"[cyan]Search Query:[/cyan] {keyword}\n"
+                f"[cyan]Pages to Crawl:[/cyan] {num_pages}\n\n"
+                "[dim]The crawler is running in a separate console window[/dim]\n"
+                "[dim]Check the new window for progress and results[/dim]",
+                title="[bold green]🎉 Success[/bold green]",
+                border_style="green",
+                box=box.DOUBLE
+            )
+            console.print(success_panel)
+            console.print()
         
-        # Ask if wait for process
-        if Confirm.ask("[yellow]Wait for crawler to finish?[/yellow]", default=False):
+        # Ask if wait for process (if manual) or wait automatically (if AI)
+        wait = auto_config is not None  # Default true for AI
+        if not auto_config:
+            wait = Confirm.ask("[yellow]Wait for crawler to finish?[/yellow]", default=False)
+
+        if wait:
             with console.status("[bold yellow]Waiting for crawler to complete...", spinner="dots"):
                 process.wait()
             
@@ -675,8 +710,10 @@ def show_error(error_msg):
 def run_dataset_generator(args=None):
     """Run the dataset generator application"""
     try:
-        if args and args.query and args.num and args.name:
-            print_banner()
+        if args and hasattr(args, 'query') and args.query and args.num and args.name:
+            if not isinstance(args, SimpleNamespace): # Only print banner if not interactive
+                 print_banner()
+            
             config = {
                 'query': args.query,
                 'num': args.num,
@@ -698,19 +735,20 @@ def run_dataset_generator(args=None):
         # Show configuration
         print_config(config)
         
-        # Confirm with styled prompt
-        confirm_panel = Panel(
-            "[yellow]Review the configuration above.[/yellow]\n"
-            "[dim]Press Enter to start or Ctrl+C to cancel[/dim]",
-            title="[bold yellow]⚠️  Confirmation[/bold yellow]",
-            border_style="yellow",
-            box=box.ROUNDED
-        )
-        console.print(confirm_panel)
-        
-        if not Confirm.ask("\n[bold yellow]🚀 Start dataset generation?[/bold yellow]", default=True):
-            console.print("\n[yellow]⚠️  Operation cancelled by user[/yellow]\n")
-            return False
+        # Confirm with styled prompt if not automated via args
+        if not args or not hasattr(args, 'query'):
+            confirm_panel = Panel(
+                "[yellow]Review the configuration above.[/yellow]\n"
+                "[dim]Press Enter to start or Ctrl+C to cancel[/dim]",
+                title="[bold yellow]⚠️  Confirmation[/bold yellow]",
+                border_style="yellow",
+                box=box.ROUNDED
+            )
+            console.print(confirm_panel)
+            
+            if not Confirm.ask("\n[bold yellow]🚀 Start dataset generation?[/bold yellow]", default=True):
+                console.print("\n[yellow]⚠️  Operation cancelled by user[/yellow]\n")
+                return False
         
         console.print()
         console.rule("[bold green]🚀 Starting Pipeline[/bold green]", style="green")
@@ -761,6 +799,65 @@ def run_dataset_generator(args=None):
         return False
 
 
+def run_ai_assistant():
+    """Run the interactive AI assistant loop"""
+    agent = AIAgent()
+    
+    console.clear()
+    console.rule("[bold magenta]🤖 AI Assistant (GPT-Nano Integration)[/bold magenta]", style="magenta")
+    console.print("\n[dim]I can help you generate datasets or crawl the web. Just ask![/dim]")
+    console.print("[dim]Type 'exit' to return to menu.[/dim]\n")
+
+    if not agent.is_configured():
+        console.print(Panel("[red]OPENAI_API_KEY not found in environment variables.[/red]\nPlease configure your .env file.", title="Error", border_style="red"))
+        Prompt.ask("Press Enter to continue")
+        return
+
+    while True:
+        user_input = Prompt.ask("\n[bold magenta]You[/bold magenta]")
+        
+        if user_input.lower() in ['exit', 'quit', 'back']:
+            break
+            
+        with console.status("[bold magenta]Thinking...", spinner="dots"):
+            result = agent.parse_instruction(user_input)
+            
+        if "error" in result:
+            console.print(f"[red]Error: {result['error']}[/red]")
+            continue
+            
+        tool = result.get("tool")
+        
+        if tool == "chat":
+            console.print(Panel(result["message"], title="[bold magenta]AI[/bold magenta]", border_style="magenta"))
+            
+        elif tool == "dataset_generator":
+            console.print("[green]🤖 Creating dataset configuration from your request...[/green]")
+            
+            # Convert dict to Namespace object to simulate argparse args
+            args_mock = SimpleNamespace(
+                query=result.get('query'),
+                num=result.get('num'),
+                name=result.get('name'),
+                description=f"Generated by AI via query: {result.get('query')}",
+                output="data/processed",
+                size=result.get('size', 256),
+                quality=90,
+                train_ratio=result.get('train_ratio', 0.7),
+                val_ratio=result.get('val_ratio', 0.15),
+                test_ratio=result.get('test_ratio', 0.15),
+                seed=42,
+                keep_temp=False,
+                min_size=100
+            )
+            # Run the generator
+            run_dataset_generator(args=args_mock)
+            
+        elif tool == "web_crawler":
+            console.print("[blue]🤖 Preparing web crawler...[/blue]")
+            launch_web_crawler(auto_config=result)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='AI Tools Suite - Multiple AI applications in one',
@@ -801,7 +898,7 @@ Examples:
             if choice == "1":
                 # Dataset Generator
                 console.print()
-                success = run_dataset_generator()
+                run_dataset_generator()
                 
                 # Ask if return to menu
                 console.print()
@@ -817,8 +914,12 @@ Examples:
                 console.print()
                 if not Confirm.ask("[yellow]Return to main menu?[/yellow]", default=True):
                     break
-                    
+
             elif choice == "3":
+                # AI Assistant
+                run_ai_assistant()
+                
+            elif choice == "4":
                 # Exit
                 console.print()
                 goodbye_panel = Panel(
