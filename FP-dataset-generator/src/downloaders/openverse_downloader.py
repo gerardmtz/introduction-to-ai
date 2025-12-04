@@ -11,10 +11,12 @@ class OpenverseDownloader:
         self.headers = {
             'User-Agent': 'DatasetGenerator/1.0 (Educational Project)'
         }
+        # Safe limit to avoid rate limiting without authentication
+        self.safe_page_size = 20
     
     def search_images(self, query: str, num_images: int = 50) -> List[Dict]:        
         """
-        Search images in Openverse
+        Search images in Openverse with smart pagination
         
         Args:
             query: search criteria
@@ -24,31 +26,78 @@ class OpenverseDownloader:
             List of dictorionaries with information related to
             each image
         """
-        page_size = min(num_images, 500)  # max per page
+        all_results = []
+        page = 1
         
-        params = {
-            'q': query,
-            'page_size': page_size
-        }
+        # If it needs for images than the same limit, start pagination
+        while len(all_results) < num_images:
+            # Get the diference of necessary images for this pagination
+            remaining = num_images - len(all_results)
+            page_size = min(remaining, self.safe_page_size)
+            
+            params = {
+                'q': query,
+                'page': page,
+                'page_size': page_size
+            }
+            
+            try:
+                print(f"   Fetching page {page} (requesting {page_size} images)...")
+                
+                response = requests.get(
+                    self.base_url,
+                    params=params,
+                    headers=self.headers,
+                    timeout=10
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                results = data.get('results', [])
+                
+                if not results:
+                    print(f"   No more results available (got {len(all_results)} total)")
+                    break
+                
+                all_results.extend(results)
+                print(f"   ✓ Retrieved {len(results)} images (total: {len(all_results)})")
+                
+                # If it got all the requested, stop
+                if len(all_results) >= num_images:
+                    break
+                
+                # If it got less than requested it means there is no more images
+                if len(results) < page_size:
+                    print(f"   Reached end of available results")
+                    break
+                
+                page += 1
+                
+                # Small pause between pages to avoid rate limiting
+                if page > 1:
+                    time.sleep(2)
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 401:
+                    print(f"✗ Authentication error (401)")
+                    print(f"  Tip: If this persists, try requesting fewer images at once")
+                    break
+                else:
+                    print(f"✗ HTTP error on page {page}: {e}")
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"✗ Request error on page {page}: {e}")
+                break
         
-        try:
-            response = requests.get(
-                self.base_url,
-                params=params,
-                headers=self.headers,
-                timeout=10
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            results = data.get('results', [])
-            
-            print(f"✓ Found {len(results)} images for '{query}'")
-            return results[:num_images]
-            
-        except requests.exceptions.RequestException as e:
-            print(f"✗ Error on query: {e}")
-            return []
+        # Truncate the quantity of queried images
+        all_results = all_results[:num_images]
+        
+        if all_results:
+            print(f"✓ Found {len(all_results)} images for '{query}'")
+        else:
+            print(f"✗ No images found for '{query}'")
+        
+        return all_results
     
     def download_image(self, image_info: Dict, save_dir: Path, index: int) -> Optional[Path]:        
         """
@@ -93,7 +142,7 @@ class OpenverseDownloader:
     
     def download_dataset(self, query: str, num_images: int, save_dir: str) -> List[Path]:
         """
-        Dowloads a full set of images
+        Downloads a full set of images
         
         Args:
             query: search criteria
@@ -106,7 +155,7 @@ class OpenverseDownloader:
         save_path = Path(save_dir)
         save_path.mkdir(parents=True, exist_ok=True)
         
-        # Buscar imágenes
+        # Search images with smart pagination
         print(f"\n🔍 Searching '{query}' in Openverse...")
         results = self.search_images(query, num_images)
         
@@ -114,7 +163,7 @@ class OpenverseDownloader:
             print("Search criteria images not found")
             return []
         
-        # Descargar imágenes
+        # Download Images
         print(f"\n⬇️  Downloading {len(results)} images...\n")
         downloaded = []
         
@@ -133,6 +182,7 @@ class OpenverseDownloader:
             time.sleep(0.5)
         
         print(f"\n✅ Downloaded: {len(downloaded)}/{len(results)} sucessful images")
-        print(f"📁 Saved in: {save_path.absolute()}")
+        print(f"📂 Saved in: {save_path.absolute()}")
         
         return downloaded
+    

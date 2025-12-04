@@ -1,10 +1,87 @@
-# image format
+# Environment variables
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Poetry
+poetry.lock
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go compiled binaries
+webcrawler-source/webcrawler
+webcrawler-source/webcrawler.exe
+*.exe
+*.out
+
+# Data directories
+data/processed/*
+data/raw/*
+data/temp/*
+
+# Keep directory structure but ignore contents
+!data/processed/.gitkeep
+!data/raw/.gitkeep
+!data/temp/.gitkeep
+
+# Image files
 *.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.webp
 
-# ignores test prompt files
+# Test files and prompts
 prompting/
+test-scripts/__pycache__/
 
-# ignores metadata generated files
-*.md
-*dataset_info.json
+# Logs
+*.log
 
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
