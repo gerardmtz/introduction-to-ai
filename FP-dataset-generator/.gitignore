@@ -9,3 +9,7 @@ data/processed/*
 
 # ignores .evn variables
 *.env
+
+# ignores build webscrapper files:
+webcrawler-source/webcrawler
+webcrawler-source/webcrawler.exe

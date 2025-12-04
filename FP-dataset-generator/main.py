@@ -130,22 +130,32 @@ def launch_web_crawler(auto_config=None):
     
     # 1. Determinar ejecutable (Automático si viene de IA, Manual si no)
     if auto_config:
-        # Intenta encontrar el exe automáticamente en el directorio actual
-        possible_names = ["webcrawler-ai.exe", "webcrawler-ai", "main.exe", "main"]
-        for name in possible_names:
-            if Path(name).exists():
-                exe_file = Path(name).absolute()
+        # Buscar el ejecutable en las ubicaciones correctas
+        possible_paths = [
+            Path("webcrawler-source/webcrawler"),  # macOS/Linux
+            Path("webcrawler-source/webcrawler.exe"),  # Windows
+            Path("webcrawler"),  # Si está en la raíz
+            Path("webcrawler.exe"),  # Windows en raíz
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                exe_file = path.absolute()
+                console.print(f"[green]✓ Found web crawler at:[/green] {exe_file}")
                 break
         
         if not exe_file:
             console.print("[red]❌ Could not find web crawler executable automatically.[/red]")
-            # Si falla, cae al prompt manual de abajo
+            console.print("[yellow]Expected location: webcrawler-source/webcrawler[/yellow]")
+            console.print("[dim]Tip: Make sure you ran the build step in run_project.sh[/dim]")
+            return False
             
     if not exe_file:
         # Ask for executable path
         exe_panel = Panel(
-            "[yellow]Enter the path to webcrawler.exe[/yellow]\n\n"
-            "[dim]Tip: You can drag and drop the .exe file here[/dim]",
+            "[yellow]Enter the path to webcrawler executable[/yellow]\n\n"
+            "[dim]Tip: You can drag and drop the file here[/dim]\n"
+            "[dim]Default location: webcrawler-source/webcrawler[/dim]",
             title="[blue]📂 Executable Path[/blue]",
             border_style="blue",
             box=box.ROUNDED
@@ -154,7 +164,8 @@ def launch_web_crawler(auto_config=None):
         console.print()
         
         exe_path = Prompt.ask(
-            "[bold blue]Executable path[/bold blue]"
+            "[bold blue]Executable path[/bold blue]",
+            default="webcrawler-source/webcrawler"
         )
         
         # Clean up the path
@@ -165,11 +176,13 @@ def launch_web_crawler(auto_config=None):
     if not exe_file.exists():
         error_panel = Panel(
             f"[bold red]File not found:[/bold red]\n\n"
-            f"[yellow]Path:[/yellow] {exe_file}\n\n"
+            f"[yellow]Path:[/yellow] {exe_file}\n"
+            f"[yellow]Absolute path:[/yellow] {exe_file.absolute()}\n\n"
             f"[yellow]💡 Suggestions:[/yellow]\n"
             f"  • Check if the path is correct\n"
-            f"  • Copy the full path from File Explorer\n"
-            f"  • Verify the file exists\n",
+            f"  • Make sure you compiled the Go project\n"
+            f"  • Run: cd webcrawler-source && go build -o webcrawler .\n"
+            f"  • Verify the file exists at: webcrawler-source/webcrawler\n",
             title="[bold red]❌ ERROR[/bold red]",
             border_style="red",
             box=box.HEAVY
@@ -252,7 +265,7 @@ def launch_web_crawler(auto_config=None):
         config_table.add_column("Value", style="bold white", width=50)
         
         config_table.add_row("📂 Executable", exe_file.name)
-        config_table.add_row("📁 Location", str(exe_file.parent))
+        config_table.add_row("📍 Location", str(exe_file.parent))
         config_table.add_row("🔍 Search Keyword", f"[green]{keyword}[/green]")
         config_table.add_row("📄 Pages to Crawl", f"[yellow]{num_pages}[/yellow]")
         config_table.add_row("📊 Verbose Mode", "[green]✅ Enabled[/green]" if verbose else "[red]❌ Disabled[/red]")
@@ -821,6 +834,8 @@ def run_ai_assistant():
             
         with console.status("[bold magenta]Thinking...", spinner="dots"):
             result = agent.parse_instruction(user_input)
+            
+        console.print(f"[dim]Debug - AI returned: {result}[/dim]")
             
         if "error" in result:
             console.print(f"[red]Error: {result['error']}[/red]")
