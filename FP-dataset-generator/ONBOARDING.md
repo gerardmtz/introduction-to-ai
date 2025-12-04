@@ -1,24 +1,26 @@
-# 🚀 AI Dataset Generator & Crawler Suite - Onboarding
+## 🚀 AI Dataset Generator & Crawler Suite - Onboarding
 
-Bienvenido al proyecto. Esta herramienta es un CLI híbrido (Python/Go) diseñado para automatizar la creación de Datasets de ML. Incluye un asistente de IA impulsado por modelos "Nano" (optimizados) para interpretar comandos en lenguaje natural.
+Welcome to the project. This tool is a hybrid CLI (Python/Go) designed to automate the creation of ML Datasets. It includes an AI assistant powered by "Nano" models (optimized) to interpret natural language commands.
 
-## 📋 Prerrequisitos
+## 📋 Prerequisites
 
-Antes de iniciar, asegúrate de tener instalado:
+Before starting, make sure you have the following installed:
 
-1.  **Python 3.12+**: [Descargar](https://www.python.org/downloads/)
-2.  **Go 1.21+**: [Descargar](https://go.dev/dl/)
-3.  **Poetry** (Gestor de dependencias Python):
+1.  **Python 3.12+**: [Download](https://www.python.org/downloads/)
+2.  **Go 1.21+**: [Download](https://go.dev/dl/)
+3.  **Poetry** (Python dependency manager):
     ```bash
-    curl -sSL [https://install.python-poetry.org](https://install.python-poetry.org) | python3 -
+    curl -sSL https://install.python-poetry.org | python3 -
     ```
-4.  **OpenAI API Key**: Necesaria para la funcionalidad de chat.
+4.  **OpenAI API Key**: Required for chat functionality.
 
-## ⚙️ Configuración del Entorno
+## ⚙️ Environment Setup
 
-### 1. Variables de Entorno
-Crea un archivo `.env` en la raíz del proyecto:
+### 1\. Environment Variables
+
+Create an `.env` file in the project root:
 
 ```bash
-OPENAI_API_KEY=sk-tu-clave-secreta-aqui
-OPENAI_MODEL=gpt-4o-mini  # Usamos este como proxy para el concepto de gpt-5-nano
+OPENAI_API_KEY=sk-your-secret-key-here
+OPENAI_MODEL=your_prefered_model_here
+```
